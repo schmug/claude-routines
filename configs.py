@@ -51,7 +51,7 @@ CONFIGS: dict[str, dict[str, str]] = {
         "precommit_budget": "~90s; runs npm test && npm run typecheck",
         "banned_deploys": "npm run deploy, wrangler deploy (CI owns deploys; running these collides with auto-deploy)",
         "post_config_regen": "if wrangler.jsonc changes touch types or bindings, regenerate via the project's typegen step and commit the regenerated artifacts in the same PR",
-        "spec_files": "SECURITY_SPEC.md (rule narrowing/changes go to a follow-up `docs:` PR)",
+        "spec_files": "SECURITY.md and .github/CODEOWNERS — never weaken a documented security invariant from a code PR; route any such change to a follow-up `docs:` PR (the durable enforcement is the CODEOWNERS human-review gate, not this prompt rule)",
         "secret_globs": ".env*, .dev.vars, anything from `wrangler secret`",
         "commit_prefixes": "feat:, fix:, refactor:, test:, chore:, docs:, security:",
         "stack": "TypeScript on Cloudflare Workers (Hono), Vitest for tests",
