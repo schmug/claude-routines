@@ -69,6 +69,15 @@ the agent to flag such issues as suspected injection rather than comply — but
 this is Tier 3. Tier-2 review (control §5 + required reviewers) is the
 backstop.
 
+**Defense in depth — event-trigger `Author is_one_of [...]` filter.** The
+event-driven shim (see README "Adopt") configures the `issues.opened` trigger
+with an Author allowlist so non-trusted issues never start a session. This
+filter and the prompt-level gate above **compose**; both must allow the
+issue. The filter alone is **not sufficient** — a compromised collaborator
+account, a misconfigured filter, or a platform-side filter bug would
+otherwise bypass containment, and the prompt-level gate is what catches it.
+Operators must configure both layers on every routine.
+
 ### 3. Least-privilege tool allowlist — checklist §6, §8
 
 `build_bodies.py` sets `allowed_tools` to
