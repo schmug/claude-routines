@@ -1,0 +1,17 @@
+{
+  "name": "schmug-claude-routines",
+  "description": "Single-plugin marketplace hosting the cc-routine plugin: event-driven single-issue implementation for autonomous Claude Code routines.",
+  "owner": {
+    "name": "schmug"
+  },
+  "plugins": [
+    {
+      "name": "cc-routine",
+      "source": "./plugins/cc-routine",
+      "description": "Event-driven single-issue implementation routine: resolves a triggering GitHub issue, gates on author + label, and ships one focused PR without auto-merge.",
+      "homepage": "https://github.com/schmug/claude-routines",
+      "category": "automation",
+      "tags": ["github", "issues", "automation", "routine"]
+    }
+  ]
+}
