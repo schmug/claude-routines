@@ -1,0 +1,8 @@
+{
+  "name": "cc-routine",
+  "description": "Event-driven single-issue implementation routine for autonomous Claude Code sessions: resolves a triggering GitHub issue, gates on author + label, and ships one focused PR without auto-merge.",
+  "author": {
+    "name": "schmug"
+  },
+  "homepage": "https://github.com/schmug/claude-routines"
+}
