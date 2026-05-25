@@ -1,0 +1,23 @@
+{
+  "name": "cc-routine",
+  "version": "0.1.0",
+  "description": "Event-driven single-issue implementation routine for autonomous Claude Code sessions: resolves a triggering GitHub issue, gates on author + label, and ships one focused PR without auto-merge.",
+  "author": {
+    "name": "schmug"
+  },
+  "homepage": "https://github.com/schmug/claude-routines",
+  "skills": [
+    {
+      "name": "routine-event-resolve",
+      "path": ".claude/skills/routine-event-resolve/SKILL.md"
+    },
+    {
+      "name": "routine-anti-noise",
+      "path": ".claude/skills/routine-anti-noise/SKILL.md"
+    },
+    {
+      "name": "implement-from-issue",
+      "path": ".claude/skills/implement-from-issue/SKILL.md"
+    }
+  ]
+}
