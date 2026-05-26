@@ -211,9 +211,10 @@ these plugin skills against the triggering PR, in order:
                              escalation comment on FAIL
 
 Shim parameters:
-- repo slug      : schmug/<target-repo>
-- branch base    : main
-- trusted author : schmug
+- repo slug            : schmug/<target-repo>
+- branch base          : main
+- trusted author       : schmug
+- ci-poll-budget-minutes: 20   # default; raise to 40–60 for slow-CI repos
 
 All repo-specific conventions — risk-path denylist (CRITICAL for this skill),
 scope-fit format (`Pointers:` vs ```scope``` block), CI required-check names —
@@ -240,10 +241,14 @@ protection, tool limits, or the risk-path denylist.
 Deploy with the same RemoteTrigger create-body shape as the implementer,
 with these field changes:
 
-- **Event** = `pull_request.opened`. (Your trigger UI may also offer
-  `pull_request.synchronize` — adding it is safe; the skill is idempotent.
-  `check_suite.completed` is not currently exposed in the UI; the skill's
-  internal `gh pr checks` poll covers it instead.)
+- **Event** = `pull_request.opened`. **Recommended for slow-CI repos: also
+  add `pull_request.synchronize`** — the skill is idempotent, and on repos
+  where CI takes longer than the poll budget the merger exits with a visible
+  "CI still pending" PR comment; a `pull_request.synchronize` event (e.g.
+  an empty-commit re-trigger) will re-fire the merger and find CI settled
+  without any manual intervention beyond the push. `check_suite.completed`
+  is not currently exposed in the UI; the skill's internal `gh pr checks`
+  poll covers it instead.
 - **Author filter** = `Author is_one_of [<your-trusted-author>]` (Tier-1
   defense in depth with the prompt-level gate).
 - **Branch filter (if available)** = `headRefName starts_with claude/` —
@@ -271,10 +276,13 @@ Once the implementer trigger (and optionally the merger trigger) is live:
    cause. **It never merges.**
 3. **The merger routine fires on the PR open** (if deployed). It re-runs
    the author-trust gate on the PR + linked issue, polls `gh pr checks`
-   up to 20 minutes for CI, then evaluates the six-condition gate. PASS →
-   `gh pr merge --squash --auto --delete-branch`. FAIL → one `needs-you`
-   comment listing every failed condition, and exit. If the merger isn't
-   deployed, you (or your own merge gate) merge the PR.
+   up to `ci-poll-budget-minutes` (default 20 min) for CI, then evaluates
+   the six-condition gate. PASS → `gh pr merge --squash --auto
+   --delete-branch`. FAIL → one `needs-you` comment listing every failed
+   condition, and exit. If CI is still pending after the budget, the
+   merger posts one visible "CI still pending" PR comment and exits — the
+   next `pull_request.synchronize` (or manual re-trigger) re-fires it. If
+   the merger isn't deployed, you (or your own merge gate) merge the PR.
 
 If the routine hits genuine design ambiguity (data model, API shape, new
 dependency, security/threat-model question), it comments with 2–3 labeled
