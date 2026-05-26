@@ -1,6 +1,6 @@
 {
   "name": "schmug-claude-routines",
-  "description": "Single-plugin marketplace hosting the cc-routine plugin: event-driven single-issue implementation for autonomous Claude Code routines.",
+  "description": "Single-plugin marketplace hosting the cc-routine plugin: event-driven issue-to-PR and optional gated PR-to-merge routines for autonomous Claude Code sessions.",
   "owner": {
     "name": "schmug"
   },
@@ -8,7 +8,7 @@
     {
       "name": "cc-routine",
       "source": "./plugins/cc-routine",
-      "description": "Event-driven single-issue implementation routine: resolves a triggering GitHub issue, gates on author + label, and ships one focused PR without auto-merge.",
+      "description": "Event-driven routines for GitHub: implementer (issues.opened → focused PR, never merges) and optional merger (pull_request.opened → six-condition fail-closed gate → gh pr merge --auto or one needs-you escalation). Author + label gated, repo-agnostic skills.",
       "homepage": "https://github.com/schmug/claude-routines",
       "category": "automation",
       "tags": ["github", "issues", "automation", "routine"]
