@@ -109,15 +109,29 @@ branch or another routine's branches. **Tier 1.**
 > branch names, this still needed to change — the previous value was already
 > broken for the per-issue branches the prompts create.
 
-### 5. Human review gate on autonomous code — checklist §3
+### 5. Merge-gate separation: implementer never merges its own PR — checklist §3
 
-The single-issue template **no longer enables auto-merge** and forbids the
-agent from merging its own PR. Autonomous code derived from an issue contract
-always lands behind a human (or required-reviewers branch protection) merge
-gate. Note: the platform's `autofix_on_pr_create` flag (true for single-issue)
-only lets the agent fix *its own* PR's CI — it does not bypass review and is
-retained intentionally. **Tier 3 in the prompt; make it Tier 2 with branch
-protection (below).**
+The implementer routine (skill: `implement-from-issue`) **never enables
+auto-merge** and **never merges its own PR**. This invariant is unchanged
+since the original "no auto-merge" stance and is still the cornerstone of
+the design — a single compromised implementer session must not be able to
+both write code and land it.
+
+What changed: autonomous merge is now possible via a **separate** routine
+running the `merge-pr-with-gate` skill on a `pull_request.opened` trigger.
+Two routines, two skills, two triggers. The merger has its own author-trust
+gate, its own `<untrusted_input>` preamble, and its own six-condition
+fail-closed gate (see §8). Splitting authoring from merging means an
+injected implementer session cannot mint its own merge — it would have to
+also subvert the merger session, which sees a *different* trust-allowlisted
+event payload and re-runs the gate against the PR + linked issue
+independently.
+
+Note: the platform's `autofix_on_pr_create` flag (true for the implementer)
+only lets the implementer fix *its own* PR's CI — it does not bypass review
+and is retained intentionally. **Tier 3 in the prompt; Tier 2 with branch
+protection on the base branch is what actually enforces it (§Required
+operator setup).**
 
 ### 6. Secret / spec / deploy rules — checklist §4, §6
 
@@ -132,6 +146,78 @@ CODEOWNERS on spec files. Do not rely on the prompt text alone.
 generation time. **Accepted**: `local_configs.py` is operator-authored and
 gitignored; treat it like any module you write. Do not run `gen_routines.py`
 against a `local_configs.py` you did not author.
+
+### 8. Auto-merge gate (opt-in, separate routine) — checklist §3
+
+`merge-pr-with-gate` is the opt-in v0 reversal of the original "no auto-merge"
+stance, tracked in repo [#7](https://github.com/schmug/claude-routines/issues/7).
+Deploy it as a **second** RemoteTrigger on `pull_request.opened` (not on the
+implementer trigger). The skill enforces six conditions, all fail-closed —
+the verdict is PASS only if every condition positively holds; any failure
+escalates to one `needs-you` comment and exit:
+
+1. **Provenance (primary, unforgeable):** the PR author AND the linked
+   issue's author are both on the trusted-author allowlist. Re-checked
+   inside the merger session — the merger does not infer trust from the
+   implementer having run.
+2. **Linkage:** PR body contains exactly one `Closes #N` resolving to an
+   open issue meeting (1).
+3. **Risk-path denylist:** no changed path matches the risk-path globs
+   declared in the target repo's `CLAUDE.md` (auth/crypto, workflows, IaC,
+   migrations, secret globs, MTA-STS, Cloudflare Access, etc.). The skill
+   carries a conservative default if the target `CLAUDE.md` omits the list.
+4. **Size envelope:** `additions + deletions ≤ 250` AND `files ≤ 8`. The
+   higher-throughput-pilot defaults from `docs/proposals/auto-merge-gate/`;
+   target repos can tighten in their `CLAUDE.md`.
+5. **CI green:** every required check is `SUCCESS` or `NEUTRAL`. The skill
+   polls `gh pr checks` for up to 20 min; pending → exits silently (next
+   event will re-fire), red → fails fast.
+6. **Scope-fit:** every changed path matches at least one declared pointer
+   (```scope``` block or `Pointers:` section) in the linked issue. No
+   declared scope = fail (no scope = not safe).
+
+**Tier classification:**
+
+| Layer | Where | Survives prompt injection? |
+|---|---|---|
+| Six-condition gate prose | `merge-pr-with-gate/SKILL.md` | **Tier 3** — guidance for a well-behaved agent |
+| `Author is_one_of` filter on `pull_request.opened` | event trigger | **Tier 1** — platform-enforced |
+| Branch filter `headRefName starts_with claude/` | event trigger (if available) | **Tier 1** |
+| `allowed_tools` allowlist (unchanged) | build-time | **Tier 1** |
+| **Branch protection on `<base>`** (required status checks, no force-push, no bypass) | target repo | **Tier 2 — the real backstop** |
+
+**Branch protection is a prerequisite, not a recommendation.** The skill's
+header asserts it; without it, a buggy or injected merger run could land
+red code. Do not deploy the merger on a repo whose base branch lacks
+required status checks.
+
+**The implementer/merger split is itself a defense.** A prompt-injected
+implementer session would have to *also* subvert a separate session — one
+that is triggered by a different event, sees the merge-side
+`<untrusted_input>` preamble, and re-runs the author-trust gate against
+both the PR and the linked issue — to mint a merge. Don't collapse the
+two routines into one.
+
+**Residual risks specific to the merger:**
+
+- The risk-path denylist is **prose, not enforced** — an injected merger
+  could ignore it. Branch protection + CODEOWNERS on actually-sensitive
+  paths is what stops a hostile merge there.
+- CI being "green" depends on the target repo having meaningful required
+  checks. A repo with no required checks fails open on §8(5). Audit the
+  branch-protection ruleset before deploying.
+- The 250-line/8-file envelope is a heuristic. A small, targeted hostile
+  diff that fits the envelope and doesn't hit the denylist is the threat
+  this gate explicitly does not stop — the assumption is that a trusted
+  issue from a trusted author authoring such a change is acceptable risk.
+  CODEOWNERS on the sensitive paths the envelope can't catch is the
+  fallback.
+
+The deterministic TypeScript gate in `docs/proposals/auto-merge-gate/`
+remains the longer-term target — it converts the prose gate into a unit-
+tested module the routine shells via `npx tsx`, moving correctness out of
+the LLM's control loop. v0 prose ships now; the deterministic gate is the
+durable upgrade.
 
 ## Required operator setup (Tier 2 — you must do this)
 

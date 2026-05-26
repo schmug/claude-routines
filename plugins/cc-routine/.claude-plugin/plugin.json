@@ -1,6 +1,6 @@
 {
   "name": "cc-routine",
-  "description": "Event-driven single-issue implementation routine for autonomous Claude Code sessions: resolves a triggering GitHub issue, gates on author + label, and ships one focused PR without auto-merge.",
+  "description": "Event-driven routines for autonomous Claude Code sessions on GitHub. Implementer (issues.opened → focused PR, never merges its own PR) plus optional merger (pull_request.opened → six-condition fail-closed gate → gh pr merge --auto or one needs-you escalation). Author + label gated, repo-agnostic skills.",
   "author": {
     "name": "schmug"
   },
