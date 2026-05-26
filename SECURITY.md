@@ -205,7 +205,13 @@ two routines into one.
   paths is what stops a hostile merge there.
 - CI being "green" depends on the target repo having meaningful required
   checks. A repo with no required checks fails open on §8(5). Audit the
-  branch-protection ruleset before deploying.
+  branch-protection ruleset before deploying. If CI is genuinely slow, the
+  merger exits after the `ci-poll-budget-minutes` wall-time budget (default
+  20 min, configurable per-repo in the shim) and posts one visible "CI still
+  pending" PR comment listing the pending check names and the operator's next
+  steps. Subsequent fires that find the comment already present exit silently
+  (anti-noise discipline). Configure `pull_request.synchronize` on the merger
+  trigger for slow-CI repos so a status-push re-fires the merger automatically.
 - The 250-line/8-file envelope is a heuristic. A small, targeted hostile
   diff that fits the envelope and doesn't hit the denylist is the threat
   this gate explicitly does not stop — the assumption is that a trusted
