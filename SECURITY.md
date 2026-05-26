@@ -227,6 +227,8 @@ routine targets:
 1. **Branch protection on the base branch**: require PR review, require status
    checks, disallow direct pushes. This is what actually stops a malicious or
    injected PR from landing — the prompt's "never push to base" is Tier 3.
+   [`scripts/setup-branch-protection.sh`](scripts/setup-branch-protection.sh)
+   audits (dry-run default) or provisions (`--apply`) this ruleset.
 2. **Required reviewers / CODEOWNERS** on `spec_files` and any security-critical
    path, so the agent cannot land changes there without a human.
 3. **Secret scanning + push protection** enabled (and a secret-scanning

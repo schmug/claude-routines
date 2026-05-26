@@ -734,6 +734,8 @@ git commit -m "feat: pipeline label setup script"
 
 ## Task 9: Branch-protection backstop script (audit, then --apply)
 
+> See [`scripts/setup-branch-protection.sh`](../../scripts/setup-branch-protection.sh) in the `claude-routines` root for the current, repo-agnostic version of this script. The body below is preserved as historical context.
+
 **Files:**
 - Create: `scripts/routine-pipeline/setup-branch-protection.sh`
 

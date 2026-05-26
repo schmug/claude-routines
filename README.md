@@ -192,8 +192,10 @@ can run either alone.
 
 **Prerequisite:** Tier-2 branch protection on `<base>` for the target repo
 (require status checks, no force-push, no bypass). The skill explicitly
-assumes this; without it a buggy run could ship red code. See
-[SECURITY.md](SECURITY.md) §"Required operator setup".
+assumes this; without it a buggy run could ship red code. Use
+[`scripts/setup-branch-protection.sh`](scripts/setup-branch-protection.sh)
+to audit (dry-run default) or provision (`--apply`) this ruleset; see
+[SECURITY.md](SECURITY.md) §"Required operator setup" for the full tier discussion.
 
 Shim (~30 lines, parallel to the implementer shim above):
 
