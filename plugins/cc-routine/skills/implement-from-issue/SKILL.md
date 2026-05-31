@@ -105,6 +105,8 @@ Do not push the oversized PR even if Acceptance technically asks for the whole b
 
 Conventional-commit prefix matching the issue's nature, drawn from the target repo's `CLAUDE.md` allowed list (`feat:`, `fix:`, `refactor:`, `test:`, `chore:`, `docs:`, `security:`, etc.). Other prefixes are silently dropped by changelog tooling — use only the listed ones.
 
+Sign off every commit with `git commit -s`. Where the target repo enforces a DCO check, it requires a `Signed-off-by:` trailer whose email matches the commit author; `-s` derives that trailer from the session's git identity, so the two always match. Do **not** hand-write or edit a `Signed-off-by:` line yourself — a guessed address (e.g. `<claude@anthropic.com>`) that differs from the commit-author email (`<noreply@anthropic.com>`) fails DCO even though a trailer is present.
+
 Branch: `claude/issue-<N>-<short-slug>`. The platform branch-scope allowlist rejects branches outside `claude/*`; staying in-namespace keeps the routine from ever touching `<base>`.
 
 PR body:
