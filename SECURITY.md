@@ -160,6 +160,14 @@ escalates to one `needs-you` comment and exit:
    issue's author are both on the trusted-author allowlist. Re-checked
    inside the merger session — the merger does not infer trust from the
    implementer having run.
+   **Opt-in strict extension (`require-spec-approved: true` in shim):**
+   the linked issue must also carry the `spec-approved` label. Off by
+   default. When enabled, bumps the intent-token control from "implicit
+   via author-allowlist check" (Tier 3) to "human-minted GitHub label"
+   (Tier 2 — label changes go through GitHub audit log; restrict label
+   management with CODEOWNERS or triage-role settings to prevent the
+   autonomous side from ever minting its own trust). See
+   `docs/mobile-spec-ing.md` for the runbook that mints the label.
 2. **Linkage:** PR body contains exactly one `Closes #N` resolving to an
    open issue meeting (1).
 3. **Risk-path denylist:** no changed path matches the risk-path globs
@@ -185,6 +193,7 @@ escalates to one `needs-you` comment and exit:
 | Branch filter `headRefName starts_with claude/` | event trigger (if available) | **Tier 1** |
 | `allowed_tools` allowlist (unchanged) | build-time | **Tier 1** |
 | **Branch protection on `<base>`** (required status checks, no force-push, no bypass) | target repo | **Tier 2 — the real backstop** |
+| `spec-approved` label check (`require-spec-approved: true`, opt-in) | shim parameter + human-minted GitHub label | **Tier 3 (default off) → Tier 2 (when on)** — label changes go through GitHub audit log; pair with CODEOWNERS/triage-role restrictions to prevent autonomous label-minting |
 
 **Branch protection is a prerequisite, not a recommendation.** The skill's
 header asserts it; without it, a buggy or injected merger run could land

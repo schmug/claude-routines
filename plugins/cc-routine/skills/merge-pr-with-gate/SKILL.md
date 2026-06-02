@@ -9,7 +9,7 @@ triggers:
 
 # merge-pr-with-gate
 
-This skill is the workflow: routine-authored PR → either `gh pr merge --auto` or one `needs-you` escalation comment. The shim that invokes it supplies `<slug>` (repo), `<base>` (branch base), and `<author>` (the trusted PR author the trigger filtered on — typically the repo owner whose identity the implementer routine commits as).
+This skill is the workflow: routine-authored PR → either `gh pr merge --auto` or one `needs-you` escalation comment. The shim that invokes it supplies `<slug>` (repo), `<base>` (branch base), `<author>` (the trusted PR author the trigger filtered on — typically the repo owner whose identity the implementer routine commits as), and optionally `<require-spec-approved>` (`false` by default; set `true` to require a human-minted `spec-approved` label on the linked issue — see §6 condition 1).
 
 The target repo's `CLAUDE.md` supplies the **risk-path denylist** (auth/crypto, workflows, IaC, migrations, secret globs, MTA-STS code, Cloudflare Access policies, etc.) and the **scope-fit conventions** (whether issues use `Pointers:` lines or a ```scope``` fenced block).
 
@@ -118,6 +118,11 @@ Idempotency: if the merge has already been enabled (`mergeStateStatus` of `AUTO_
 Fail-closed: every condition must positively hold. Collect *all* failures before deciding so the escalation comment is complete in one pass.
 
 1. **Provenance (primary):** PR `author.login` is the trusted `<author>` (§2) AND the linked issue `<N>` exists and is also authored by `<author>` (§4).
+
+   **Opt-in: intent-token strict mode.** If `<require-spec-approved>` is `true` in the shim, the linked issue's labels MUST also include `spec-approved`. Off by default; set `require-spec-approved: true` in the shim for multi-collaborator repos or any deployment requiring the design-spec's full provenance model (mobile→issue→implementer→merger pipeline). Fail reason when violated: `linked issue #<N> missing spec-approved label (strict mode)`.
+
+   The skill must NEVER apply, remove, or modify the `spec-approved` label — only the interactive mobile spec'ing session mints it (see docs/mobile-spec-ing.md). This invariant holds regardless of whether strict mode is enabled.
+
 2. **Linkage:** PR body contains exactly one `Closes #<N>` that resolves to an issue meeting (1). No link, ambiguous link, or link to a different repo → fail.
 3. **Risk-path denylist:** run
 

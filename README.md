@@ -134,9 +134,10 @@ the triggering issue, in order:
                              test, push, open PR (no auto-merge)
 
 Shim parameters:
-- repo slug      : schmug/<target-repo>
-- branch base    : main
-- trusted author : schmug
+- repo slug             : schmug/<target-repo>
+- branch base           : main
+- trusted author        : schmug
+- require-spec-approved : false  # set true for multi-collaborator repos (see docs/mobile-spec-ing.md)
 
 All repo-specific conventions — test command, typecheck command, commit
 prefixes, banned deploys, secret globs, spec files — live in the target
@@ -211,10 +212,11 @@ these plugin skills against the triggering PR, in order:
                              escalation comment on FAIL
 
 Shim parameters:
-- repo slug            : schmug/<target-repo>
-- branch base          : main
-- trusted author       : schmug
-- ci-poll-budget-minutes: 20   # default; raise to 40–60 for slow-CI repos
+- repo slug              : schmug/<target-repo>
+- branch base            : main
+- trusted author         : schmug
+- ci-poll-budget-minutes : 20     # default; raise to 40–60 for slow-CI repos
+- require-spec-approved  : false  # set true to require spec-approved label on linked issue
 
 All repo-specific conventions — risk-path denylist (CRITICAL for this skill),
 scope-fit format (`Pointers:` vs ```scope``` block), CI required-check names —

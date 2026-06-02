@@ -9,7 +9,7 @@ triggers:
 
 # implement-from-issue
 
-This skill is the workflow: resolved issue → focused PR. The shim that invokes it supplies `<slug>`, `<base>` (branch base), and `<author>` (the trusted author the trigger filtered on). The target repo's `CLAUDE.md` supplies test/typecheck commands, banned deploys, secret globs, spec-file discipline, conventional-commit prefixes, and any other repo-specific invariants.
+This skill is the workflow: resolved issue → focused PR. The shim that invokes it supplies `<slug>`, `<base>` (branch base), `<author>` (the trusted author the trigger filtered on), and optionally `<require-spec-approved>` (`false` by default; when `true`, the author-trust gate also requires the `spec-approved` label on the issue — see §1). The target repo's `CLAUDE.md` supplies test/typecheck commands, banned deploys, secret globs, spec-file discipline, conventional-commit prefixes, and any other repo-specific invariants.
 
 This is delegation, not pair programming. The issue body is the spec. Ship a focused PR. Comment when blocked.
 
@@ -26,6 +26,7 @@ gh issue view <N> --repo <slug> --json author,state,labels,title,body
 - `author.login` (lowercased) is not in the routine's trusted-author allowlist. The shim's trusted-author set is typically the repo owner; the event trigger's `Author is_one_of` filter is an additional layer, not a replacement.
 - `state` is not `open`.
 - Labels match the skip-on-label gate in `routine-anti-noise`.
+- `<require-spec-approved>` is `true` in the shim AND `spec-approved` is not in the issue's labels. When the operator requires an intent token, skip any issue that has not been through an interactive mobile spec'ing session — opening a PR on it would only cause the merger to escalate every time.
 
 The trigger filter and this gate are defense-in-depth. Both must allow the issue. If the gate cannot be established (e.g. the `gh` token lacks the scope for `repos/<slug>/collaborators` when the shim configures a collaborator-based allowlist), fail closed — do not fall back to "treat as trusted."
 
