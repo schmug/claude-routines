@@ -8,7 +8,7 @@
     {
       "name": "cc-routine",
       "source": "./plugins/cc-routine",
-      "description": "Event-driven routines for GitHub: implementer (issues.opened → focused PR, never merges) and optional merger (pull_request.opened → six-condition fail-closed gate → gh pr merge --auto or one needs-you escalation). Author + label gated, repo-agnostic skills.",
+      "description": "Event-driven routines for GitHub: implementer (issues.opened → focused PR; gate-conditional landing — squash auto-merge only where the target branch has required status checks, else the PR stays open) and optional merger (pull_request.opened → six-condition fail-closed gate → gh pr merge --auto or one needs-you escalation). Author + label gated, repo-agnostic skills.",
       "homepage": "https://github.com/schmug/claude-routines",
       "category": "automation",
       "tags": ["github", "issues", "automation", "routine"]
