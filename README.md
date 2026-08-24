@@ -2,30 +2,32 @@
 
 A Claude Code plugin that turns a GitHub issue into a focused pull request —
 and, optionally, merges it — autonomously. One trusted-author issue in →
-one reviewable PR out → either a human or a fail-closed six-condition gate
-closes the loop.
+one reviewable PR out → a human, the target branch's own required-checks
+gate, or a fail-closed six-condition merger gate closes the loop.
 
 ```
 ┌────────────────────────┐     ┌─────────────────────────┐     ┌────────────────────────┐
-│ Trusted author opens   │ ──▶ │ cc-routine implementer  │ ──▶ │ Human review, OR       │
-│ an issue (CC format or │     │ fires on issues.opened, │     │ cc-routine merger      │
-│ inferable spec)        │     │ implements, opens a PR  │     │ (pull_request.opened,  │
-│                        │     │ (never merges)          │     │ six-condition gate)    │
+│ Trusted author opens   │ ──▶ │ cc-routine implementer  │ ──▶ │ Human review, required-│
+│ an issue (CC format or │     │ fires on issues.opened, │     │ checks gate, OR the    │
+│ inferable spec)        │     │ implements, opens a PR  │     │ cc-routine merger      │
+│                        │     │ (merges only if gated)  │     │ (six-condition gate)   │
 └────────────────────────┘     └─────────────────────────┘     └────────────────────────┘
 ```
 
 The plugin (`cc-routine`) bundles four skills that codify the workflow:
 `routine-event-resolve` (find `<N>` from the event), `routine-anti-noise`
 (skip-on-label / don't-re-state-blockers), `implement-from-issue`
-(author-trust gate → preflight → plan → implement → test → push → open PR,
-**never** merges its own PR), and `merge-pr-with-gate` (separate routine,
+(author-trust gate → preflight → plan → implement → test → push → open PR →
+land or stop by merge gate: squash auto-merge only when the target branch
+has ≥1 required status check, otherwise stop at the open PR), and
+`merge-pr-with-gate` (separate routine,
 opt-in: author-trust gate → CI poll → six-condition fail-closed gate →
 `gh pr merge --auto` or one `needs-you` escalation). The skills defer all
 repo-specific facts (test command, commit prefixes, banned deploys, secret
 globs, risk-path denylist) to the **target repo's `CLAUDE.md`** — they are
 the same prose for every repo you install the plugin against.
 
-## Status (May 2026)
+## Status (August 2026)
 
 - ✅ **Plugin ships and is installable today** — see [Install](#install).
 - ✅ **Manual operator path works today** — write a one-screen shim, deploy it
@@ -46,8 +48,15 @@ the same prose for every repo you install the plugin against.
   scope-fit) and either calls `gh pr merge --squash --auto` or escalates
   to `needs-you`. The deterministic TS gate in
   [`docs/proposals/auto-merge-gate/implementation-plan.md`](docs/proposals/auto-merge-gate/implementation-plan.md)
-  is still the longer-term target. The **implementer** routine still never
-  merges its own PR — that invariant is unchanged.
+  is still the longer-term target. Since the 2026-08-15 policy decision
+  ([#27](https://github.com/schmug/claude-routines/issues/27), resolving the
+  stance question in [#7](https://github.com/schmug/claude-routines/issues/7)),
+  the **implementer**'s landing is gate-conditional: it lands its own PR —
+  squash auto-merge only, behind the branch gate — only when the target
+  branch has ≥1 required status check via an active ruleset or classic
+  branch protection, probed at runtime and fail-closed (detection error or
+  zero required checks = ungated). Ungated repos keep the unchanged
+  stop-at-open-PR behavior.
 
 ## Install
 
@@ -131,7 +140,7 @@ the triggering issue, in order:
 1. routine-event-resolve   — resolve <N>, triage the body into Path A/B/C
 2. routine-anti-noise      — skip-on-label gate, anti-duplicate-comment
 3. implement-from-issue    — author-trust gate, preflight, plan, implement,
-                             test, push, open PR (no auto-merge)
+                             test, push, open PR, land or stop by merge gate
 
 Shim parameters:
 - repo slug             : schmug/<target-repo>
@@ -275,7 +284,13 @@ Once the implementer trigger (and optionally the merger trigger) is live:
    waiting), implements literally, runs tests + typecheck, pushes a
    `claude/issue-<N>-<slug>` branch, opens a PR. CI runs. The routine
    watches CI; if it fails on its own PR, it tries to fix the underlying
-   cause. **It never merges.**
+   cause. **Landing is gate-conditional**: if the base branch has ≥1
+   required status check (active ruleset or classic branch protection,
+   probed at runtime, fail-closed — detection error, zero required checks,
+   or an UNKNOWN gate state all count as ungated), it lands its own PR by
+   squash auto-merge behind those checks. If the repo is ungated, or the
+   merger routine below is deployed, it stops at the open PR and names the
+   missing gate.
 3. **The merger routine fires on the PR open** (if deployed). It re-runs
    the author-trust gate on the PR + linked issue, polls `gh pr checks`
    up to `ci-poll-budget-minutes` (default 20 min) for CI, then evaluates
@@ -299,7 +314,7 @@ let the next event fire) to resume.
 plugins/cc-routine/
   .claude-plugin/plugin.json               # plugin manifest
   skills/
-    implement-from-issue/SKILL.md          # implementer workflow (issue → PR, never merges)
+    implement-from-issue/SKILL.md          # implementer workflow (issue → PR, gate-conditional landing)
     merge-pr-with-gate/SKILL.md            # merger workflow (PR → six-condition gate → merge/escalate)
     routine-anti-noise/SKILL.md            # comment/label discipline skill
     routine-event-resolve/SKILL.md         # event → <N> + triage skill
@@ -380,10 +395,15 @@ These routines feed **untrusted open-issue content** into an agent with
 - **Build-time least-privilege tool allowlist** — `Bash, Read, Write, Edit,
   Glob, Grep`. No `WebFetch`, no `WebSearch`. The merger does not need any
   additional tools (`gh pr merge` runs through `Bash`).
-- **Implementer never merges its own PR** — invariant unchanged. The
-  merger is a *separate* routine with its own trigger, allowed-tools
-  scope, and skill. Splitting authoring from merging means a compromised
-  implementer session cannot mint a merge.
+- **Implementer landing is gate-conditional** — the implementer merges its
+  own PR (squash only, behind the branch gate — never `--admin`) only when
+  the base branch has ≥1 required status check, detected at runtime and
+  fail-closed; ungated or unverifiable means it stops at the open PR. On
+  gated repos the required checks are the mechanical reviewer: a
+  compromised implementer session cannot land code those checks reject.
+  The merger is still a *separate* routine with its own trigger,
+  allowed-tools scope, and skill; where it is deployed, the implementer
+  defers landing to it.
 - **Six-condition fail-closed merge gate (opt-in)** — when the merger is
   deployed, autonomous merge requires: provenance (PR + issue authors on
   allowlist), `Closes #N` linkage, no risk-path hit (per target repo

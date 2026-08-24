@@ -109,17 +109,42 @@ branch or another routine's branches. **Tier 1.**
 > branch names, this still needed to change — the previous value was already
 > broken for the per-issue branches the prompts create.
 
-### 5. Merge-gate separation: implementer never merges its own PR — checklist §3
+### 5. Merge-gate separation: implementer landing is gate-conditional — checklist §3
 
-The implementer routine (skill: `implement-from-issue`) **never enables
-auto-merge** and **never merges its own PR**. This invariant is unchanged
-since the original "no auto-merge" stance and is still the cornerstone of
-the design — a single compromised implementer session must not be able to
-both write code and land it.
+Since the 2026-08-15 policy decision
+([#27](https://github.com/schmug/claude-routines/issues/27), resolving the
+stance question in [#7](https://github.com/schmug/claude-routines/issues/7)),
+the implementer routine (skill: `implement-from-issue`) may land **its own**
+PR — but only through a mechanical gate, detected at runtime:
 
-What changed: autonomous merge is now possible via a **separate** routine
-running the `merge-pr-with-gate` skill on a `pull_request.opened` trigger.
-Two routines, two skills, two triggers. The merger has its own author-trust
+- **Gated** — the target repo's base branch has **≥1 required status check**,
+  via an `active` ruleset targeting the base or classic branch protection.
+  The implementer may then merge its own PR, **squash only**:
+  `gh pr merge --squash --auto --delete-branch` (the branch gate holds the
+  merge until every required check passes), or a direct squash merge only
+  after observing every required check `SUCCESS`. Never `--merge` or
+  `--rebase`, never `--admin`.
+- **Ungated** — everything else. The implementer leaves the PR open, does
+  not merge, does not enable auto-merge, and names the missing gate.
+- **Detection fails closed** — an API error (404, 403, missing token
+  scope), no active ruleset or protection, or zero required status checks
+  all mean ungated. An UNKNOWN or unverifiable gate state is never a pass.
+- **Merger deployments** — where the separate merger routine (§8) is
+  deployed for a repo, the implementer defers landing to it and stops at
+  the open PR regardless of gate state.
+
+The design goal is unchanged — a single compromised implementer session
+must not be able to both write code and land it unreviewed. What holds
+that line on gated repos is the branch gate itself: the required status
+checks are the mechanical reviewer, and a hostile PR that fails them
+cannot land. The squash-only and no-`--admin` rules are **Tier 3 prose**;
+the **Tier 2** control is the ruleset/protection on the base branch, which
+must not grant the routine's identity a bypass (§Required operator setup).
+On ungated repos the original stop-at-open-PR behavior is unchanged.
+
+Autonomous merge is also possible via a **separate** routine running the
+`merge-pr-with-gate` skill on a `pull_request.opened` trigger. Two
+routines, two skills, two triggers. The merger has its own author-trust
 gate, its own `<untrusted_input>` preamble, and its own six-condition
 fail-closed gate (see §8). Splitting authoring from merging means an
 injected implementer session cannot mint its own merge — it would have to
@@ -149,7 +174,7 @@ against a `local_configs.py` you did not author.
 
 ### 8. Auto-merge gate (opt-in, separate routine) — checklist §3
 
-`merge-pr-with-gate` is the opt-in v0 reversal of the original "no auto-merge"
+`merge-pr-with-gate` is the opt-in v0 reversal of the original no-auto-merge
 stance, tracked in repo [#7](https://github.com/schmug/claude-routines/issues/7).
 Deploy it as a **second** RemoteTrigger on `pull_request.opened` (not on the
 implementer trigger). The skill enforces six conditions, all fail-closed —
