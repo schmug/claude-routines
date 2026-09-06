@@ -19,7 +19,7 @@ def test_shim_contains_implementer_skills(tmp_path: Path) -> None:
     for shim_file in shim_files:
         content = shim_file.read_text()
         assert "routine-event-resolve" in content, f"{shim_file.name} missing routine-event-resolve"
-        assert "routine-anti-noise" in content, f"{shim_file.name} missing routine-anti-noise"
+        assert "routine-noise-gate" in content, f"{shim_file.name} missing routine-noise-gate"
         assert "implement-from-issue" in content, f"{shim_file.name} missing implement-from-issue"
 
 
@@ -83,7 +83,7 @@ def test_merger_shim_emitted_when_flag_set(tmp_path: Path) -> None:
     assert (out_dir / "test-merger.md").exists()
 
     merger_content = (out_dir / "test-merger.md").read_text()
-    assert "merge-pr-with-gate" in merger_content
-    assert "routine-anti-noise" in merger_content
+    assert "routine-merge-gate" in merger_content
+    assert "routine-noise-gate" in merger_content
     assert cfg["author"] in merger_content
     assert cfg["repo_slug"] in merger_content

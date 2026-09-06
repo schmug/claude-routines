@@ -143,7 +143,7 @@ must not grant the routine's identity a bypass (§Required operator setup).
 On ungated repos the original stop-at-open-PR behavior is unchanged.
 
 Autonomous merge is also possible via a **separate** routine running the
-`merge-pr-with-gate` skill on a `pull_request.opened` trigger. Two
+`routine-merge-gate` skill on a `pull_request.opened` trigger. Two
 routines, two skills, two triggers. The merger has its own author-trust
 gate, its own `<untrusted_input>` preamble, and its own six-condition
 fail-closed gate (see §8). Splitting authoring from merging means an
@@ -174,7 +174,7 @@ against a `local_configs.py` you did not author.
 
 ### 8. Auto-merge gate (opt-in, separate routine) — checklist §3
 
-`merge-pr-with-gate` is the opt-in v0 reversal of the original no-auto-merge
+`routine-merge-gate` is the opt-in v0 reversal of the original no-auto-merge
 stance, tracked in repo [#7](https://github.com/schmug/claude-routines/issues/7).
 Deploy it as a **second** RemoteTrigger on `pull_request.opened` (not on the
 implementer trigger). The skill enforces six conditions, all fail-closed —
@@ -213,7 +213,7 @@ escalates to one `needs-you` comment and exit:
 
 | Layer | Where | Survives prompt injection? |
 |---|---|---|
-| Six-condition gate prose | `merge-pr-with-gate/SKILL.md` | **Tier 3** — guidance for a well-behaved agent |
+| Six-condition gate prose | `routine-merge-gate/SKILL.md` | **Tier 3** — guidance for a well-behaved agent |
 | `Author is_one_of` filter on `pull_request.opened` | event trigger | **Tier 1** — platform-enforced |
 | Branch filter `headRefName starts_with claude/` | event trigger (if available) | **Tier 1** |
 | `allowed_tools` allowlist (unchanged) | build-time | **Tier 1** |

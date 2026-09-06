@@ -13,7 +13,7 @@ Required fields per entry:
 
 Optional fields:
   enable_merger  "true" to also emit a merger shim (pull_request.opened
-                 event, merge-pr-with-gate skill). Default: off. Requires
+                 event, routine-merge-gate skill). Default: off. Requires
                  Tier-2 branch protection on <base> before deploying.
 
 Reference fields (not used by the generator; document here as a reminder

@@ -32,12 +32,12 @@ This runbook describes the interactive half of the issue→PR pipeline for deplo
 ## Label governance
 
 - Restrict who can apply `spec-approved` to repo owners/admins using GitHub's triage-role settings or a CODEOWNERS rule on a `.github/` config that maps to the label. The goal is to make label-minting visible in the GitHub audit log and attributable to a specific identity.
-- The merger routine re-checks the label at merge time (§6 condition 1 of `merge-pr-with-gate`). Removing the label after the implementer runs causes the merger to escalate to `needs-you` rather than auto-merge — intentional fail-closed behavior.
+- The merger routine re-checks the label at merge time (§6 condition 1 of `routine-merge-gate`). Removing the label after the implementer runs causes the merger to escalate to `needs-you` rather than auto-merge — intentional fail-closed behavior.
 - Never automate the label. The value of `spec-approved` comes entirely from the guarantee that a human was interactively engaged during spec'ing. A CI step, a webhook, or any non-interactive automation that mints the label collapses that guarantee.
 
 ## Cross-references
 
 - `plugins/cc-routine/skills/implement-from-issue/SKILL.md` §1 — where the implementer checks the label.
-- `plugins/cc-routine/skills/merge-pr-with-gate/SKILL.md` §6 condition 1 — where the merger re-checks it.
+- `plugins/cc-routine/skills/routine-merge-gate/SKILL.md` §6 condition 1 — where the merger re-checks it.
 - `SECURITY.md` §8 — tier classification for `require-spec-approved` (Tier 3 default → Tier 2 when enabled).
 - `docs/proposals/auto-merge-gate/design-spec.md` §"The provenance trust gate" condition 2 — the original design-spec specification this implements.
