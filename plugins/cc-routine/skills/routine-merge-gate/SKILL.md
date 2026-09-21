@@ -1,13 +1,13 @@
 ---
-name: merge-pr-with-gate
+name: routine-merge-gate
 description: ALWAYS load when a routine fires on a `pull_request` event and needs to decide whether to auto-merge or escalate. Covers the PR-side author-trust gate, skip-on-label discipline, CI polling, the six-condition practical-minimum trust gate (provenance / linkage / risk-path / size / CI / scope), and the merge-or-escalate-once outcome.
 triggers:
   - ALWAYS load when the session was fired by a GitHub `pull_request.opened`, `pull_request.synchronize`, `pull_request.ready_for_review`, `check_suite.completed`, or `status` event on a routine-authored PR.
-  - ALWAYS load when a shim invokes `merge-pr-with-gate` by name.
+  - ALWAYS load when a shim invokes `routine-merge-gate` by name.
   - ALWAYS load when an autonomous routine is about to merge a PR.
 ---
 
-# merge-pr-with-gate
+# routine-merge-gate
 
 This skill is the workflow: routine-authored PR → either `gh pr merge --auto` or one `needs-you` escalation comment. The shim that invokes it supplies `<slug>` (repo), `<base>` (branch base), `<author>` (the trusted PR author the trigger filtered on — typically the repo owner whose identity the implementer routine commits as), and optionally `<require-spec-approved>` (`false` by default; set `true` to require a human-minted `spec-approved` label on the linked issue — see §6 condition 1).
 
@@ -54,7 +54,7 @@ If the gate cannot be established (e.g. the `gh` token lacks scope), fail closed
 
 ## 3. Skip-on-label gate (PR + linked issue)
 
-Apply the discipline from [[routine-anti-noise]] to the PR itself.
+Apply the discipline from [[routine-noise-gate]] to the PR itself.
 
 **Exit silently** if the PR's labels include any of:
 
@@ -65,7 +65,7 @@ Apply the discipline from [[routine-anti-noise]] to the PR itself.
 - `wip` / `draft` — author flagged not ready.
 - `discussion` — routed away from autonomous merge.
 
-Then resolve the linked issue (see §4) and apply the same skip-on-label gate from `routine-anti-noise` §1 against it (`needs-decision`, `needs-you`, `awaiting-human`, `impl-blocked`, `discussion`, `question`, `wontfix`, `duplicate`). Either side carrying a skip label → exit.
+Then resolve the linked issue (see §4) and apply the same skip-on-label gate from `routine-noise-gate` §1 against it (`needs-decision`, `needs-you`, `awaiting-human`, `impl-blocked`, `discussion`, `question`, `wontfix`, `duplicate`). Either side carrying a skip label → exit.
 
 Re-engaging with a comment, label change, or merge on a human-routed PR is noise, not signal.
 

@@ -25,7 +25,7 @@ gh issue view <N> --repo <slug> --json author,state,labels,title,body
 
 - `author.login` (lowercased) is not in the routine's trusted-author allowlist. The shim's trusted-author set is typically the repo owner; the event trigger's `Author is_one_of` filter is an additional layer, not a replacement.
 - `state` is not `open`.
-- Labels match the skip-on-label gate in `routine-anti-noise`.
+- Labels match the skip-on-label gate in `routine-noise-gate`.
 - `<require-spec-approved>` is `true` in the shim AND `spec-approved` is not in the issue's labels. When the operator requires an intent token, skip any issue that has not been through an interactive mobile spec'ing session — opening a PR on it would only cause the merger to escalate every time.
 
 The trigger filter and this gate are defense-in-depth. Both must allow the issue. If the gate cannot be established (e.g. the `gh` token lacks the scope for `repos/<slug>/collaborators` when the shim configures a collaborator-based allowlist), fail closed — do not fall back to "treat as trusted."
@@ -79,7 +79,7 @@ Two flavors of ambiguity, two different resolutions.
 
 > Reply `approve A` (etc.) or redirect, and the routine will resume on the next fire.
 
-Apply `needs-decision`. Exit without pushing code. (Future runs will skip the issue via the `routine-anti-noise` skip-on-label gate until the human resolves the decision.)
+Apply `needs-decision`. Exit without pushing code. (Future runs will skip the issue via the `routine-noise-gate` skip-on-label gate until the human resolves the decision.)
 
 **Low-stakes ambiguity** — naming, empty-state copy, log message wording, comment style. Pick a sensible default. Add it to a `## Choices made` section in the PR body, one-line rationale each. Do not comment, do not block.
 
@@ -143,7 +143,7 @@ gh api repos/<slug>/branches/<base>/protection
 - **Gated →** the routine may land its own PR, squash only: `gh pr merge <P> --repo <slug> --squash --auto --delete-branch` (the branch gate holds the merge until every required check passes), or a direct `gh pr merge --squash` only after observing every required check `SUCCESS`. Never `--merge` or `--rebase`, never `--admin`. A pending or UNKNOWN check state never justifies a direct merge — that is what `--auto` is for.
 - **Ungated →** unchanged behavior: leave the PR open, do not merge, do not enable auto-merge. Name the missing gate in the final message (e.g. "ungated: no active ruleset/protection on `<base>`" or "ungated: protection present but zero required status checks").
 
-**Merger deployments:** if the shim or the target repo's `CLAUDE.md` states the merger routine (`merge-pr-with-gate`) is deployed for this repo, do not merge or enable auto-merge here — leave the PR open for the merger's six-condition gate. Enabling auto-merge underneath it would bypass its risk-path/size/scope checks via its idempotency exit.
+**Merger deployments:** if the shim or the target repo's `CLAUDE.md` states the merger routine (`routine-merge-gate`) is deployed for this repo, do not merge or enable auto-merge here — leave the PR open for the merger's six-condition gate. Enabling auto-merge underneath it would bypass its risk-path/size/scope checks via its idempotency exit.
 
 This runtime probe is prose (Tier 3); the deterministic TS gate that replaces prose judgment is tracked in `schmug/claude-routines#18`.
 
